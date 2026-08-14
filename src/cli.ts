@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 /**
  * dsh-term —— 终端版 DeepSeek Harness
- * 像 Claude Code 一样住在终端：交互式 REPL + 多轮对话 + 读文件/跑命令/写代码。
- *
- * 原理：复用全局安装的 DeepSeek Harness（dsh CLI）的 headless 模式，
- * 每次把对话历史拼进提示词，让 agent 在终端里持续对话。
+ * 像 Claude Code 一样住在终端：交互式 REPL + 多轮对话 + markdown 渲染 + 读文件/跑命令/写代码。
  */
 import { spawn } from 'node:child_process'
 import readline from 'node:readline/promises'
 import chalk from 'chalk'
 import path from 'node:path'
+import { marked } from 'marked'
+import { markedTerminal } from 'marked-terminal'
 
 interface Turn {
   role: 'user' | 'assistant'
@@ -20,6 +19,18 @@ interface Turn {
 const DSH_RUNTIME =
   process.env.DSH_RUNTIME ??
   path.join(process.env.APPDATA ?? '', 'npm', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+
+// 终端 markdown 渲染：代码块高亮、标题、列表、表格、粗体
+// @types/marked-terminal 6.x 与 marked 15 的类型不完全匹配，用断言绕过
+marked.use(markedTerminal({ unescape: true }) as unknown as Parameters<typeof marked.use>[0])
+
+function renderMarkdown(text: string): string {
+  try {
+    return marked.parse(text) as string
+  } catch {
+    return text
+  }
+}
 
 function runHeadless(prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -88,7 +99,7 @@ async function main(): Promise<void> {
     try {
       const response = await runHeadless(buildPrompt(input, history))
       history.push({ role: 'user', text: input }, { role: 'assistant', text: response })
-      console.log('\n' + response + '\n')
+      console.log('\n' + renderMarkdown(response) + '\n')
     } catch (e) {
       console.error(chalk.red('错误: ' + (e as Error).message) + '\n')
     }
