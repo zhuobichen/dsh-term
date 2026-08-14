@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 /**
  * dsh-term —— 终端版 DeepSeek Harness
- * 像 Claude Code 一样住在终端：交互式 REPL + 多轮对话 + 实时工具调用显示 + markdown 渲染。
+ * 像 Claude Code 一样住在终端：交互式 REPL + 多轮对话 + 流式输出 + 实时工具调用显示 + markdown 渲染。
  */
 import { spawn } from 'node:child_process'
 import readline from 'node:readline/promises'
 import chalk from 'chalk'
 import path from 'node:path'
-import { marked } from 'marked'
-import { markedTerminal } from 'marked-terminal'
 
 interface Turn {
   role: 'user' | 'assistant'
@@ -20,21 +18,9 @@ const DSH_RUNTIME =
   process.env.DSH_RUNTIME ??
   path.join(process.env.APPDATA ?? '', 'npm', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 
-// 终端 markdown 渲染：代码块高亮、标题、列表、表格、粗体
-// @types/marked-terminal 6.x 与 marked 15 的类型不完全匹配，用断言绕过
-marked.use(markedTerminal({ unescape: true }) as unknown as Parameters<typeof marked.use>[0])
-
-function renderMarkdown(text: string): string {
-  try {
-    return marked.parse(text) as string
-  } catch {
-    return text
-  }
-}
-
-/** 实时把工具调用（stderr 里的 ⚙ 行）显示到终端。 */
-function showToolCall(chunk: string): void {
-  const lines = chunk.split('\n').filter((l) => l.trim() !== '')
+/** 把 stderr 里的工具调用行（⚙ 前缀）渲染成灰色。 */
+function renderToolCalls(stderrChunk: string): void {
+  const lines = stderrChunk.split('\n')
   for (const line of lines) {
     if (line.includes('⚙')) {
       process.stdout.write(chalk.dim(line.trim()) + '\n')
@@ -42,7 +28,12 @@ function showToolCall(chunk: string): void {
   }
 }
 
-function runHeadless(prompt: string, onToolCall: (chunk: string) => void): Promise<string> {
+/**
+ * 跑一次 headless 任务。
+ * stdout 是流式 assistant 文本（打字机），stderr 是 ⚙ 工具调用行。
+ * 返回完整的 assistant 文本（用于对话历史）。
+ */
+function runHeadless(prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [DSH_RUNTIME, '--profile', 'headless', prompt], {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -51,11 +42,14 @@ function runHeadless(prompt: string, onToolCall: (chunk: string) => void): Promi
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', (d: Buffer) => {
-      stdout += d.toString()
+      const text = d.toString()
+      stdout += text
+      process.stdout.write(text) // 流式打字机
     })
     child.stderr.on('data', (d: Buffer) => {
-      stderr += d.toString()
-      onToolCall(d.toString())
+      const text = d.toString()
+      stderr += text
+      renderToolCalls(text)
     })
     child.on('error', reject)
     child.on('close', (code) => {
@@ -108,9 +102,9 @@ async function main(): Promise<void> {
 
     process.stdout.write('\n')
     try {
-      const response = await runHeadless(buildPrompt(input, history), showToolCall)
+      const response = await runHeadless(buildPrompt(input, history))
       history.push({ role: 'user', text: input }, { role: 'assistant', text: response })
-      console.log(renderMarkdown(response) + '\n')
+      process.stdout.write('\n')
     } catch (e) {
       console.error(chalk.red('错误: ' + (e as Error).message) + '\n')
     }
