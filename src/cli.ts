@@ -77,22 +77,57 @@ function printHelp(): void {
 `))
 }
 
-/** DeepSeek 鲸鱼 ASCII logo（蓝色喷水鲸鱼）。 */
+/** DeepSeek 鲸鱼像素 logo（40×25，深蓝描边 + 品牌蓝身 + 冰蓝肚皮 + 白嘴）。 */
+const WHALE_ROWS = [
+  '........................................',
+  '........................................',
+  '........................D...............',
+  '.......................DBD.......D......',
+  '.......................DBBD.....DBD.....',
+  '.......................DBBBD..DDBBD.....',
+  '.......................DBBBBDDBBBBD.....',
+  '.......DDDDDDDDD........DBBBBBBBBD......',
+  '......DBBBBBBBBBDD.......DBBBBBBBD......',
+  '.....DBBBBBBBBBBBBDD.....DBBBBBDD.......',
+  '....DBBBBBBBBBBBBBBBDD....DBBBD.........',
+  '...DDBBBBBBBBBBBBBBBBBD..DBBBBD.........',
+  '...DBBBBBBBBBBBBBBBBBBBDDBBBBBD.........',
+  '...DBBBDBBBBBBDBBBBBBBBBBBBBBBD.........',
+  '...DBBBDBBBBBBDBBBBBBBBBBBBBBD..........',
+  '...DBBBBBBBBBBBBBBBBBBBBBBBBBD..........',
+  '...DBBBBWWWWWWWBBBBBBBBDBBBBD...........',
+  '...DDBWWWWWWWWWWWWBBBBBBDBBBD...........',
+  '....DLLWWWWWWWWWWWWDBBBBDDBD............',
+  '.....DLLLWWWWWWWWWWDBBBBBDD.............',
+  '......DDLLLWWWWWWLLLDBBBBBDD............',
+  '........DLLLLLLLLLLLDDBBBBBBD...........',
+  '.........DDDDDDDDDDD..DDDDDDD...........',
+  '........................................',
+  '........................................',
+]
+
+function colorWhaleChar(ch: string): string {
+  switch (ch) {
+    case 'D':
+      return chalk.blue(ch) // 深蓝描边
+    case 'B':
+      return chalk.blueBright(ch) // 品牌蓝身
+    case 'L':
+      return chalk.cyanBright(ch) // 冰蓝肚皮
+    case 'W':
+      return chalk.white(ch) // 白嘴
+    default:
+      return ' ' // 透明
+  }
+}
+
 function printLogo(): void {
-  const whale = [
-    '          .          ',
-    '         / \\         ',
-    '        /   \\        ',
-    '       /_____\\       ',
-    '          |          ',
-    "        .'   '.      ",
-    '       /  o o  \\     ',
-    '      |    ^    |    ',
-    "       \\  '-'  /     ",
-    "        '.___.'      ",
-  ]
-  for (const line of whale) {
-    console.log(chalk.blue(line))
+  for (const row of WHALE_ROWS) {
+    let line = ''
+    for (const ch of row) {
+      line += colorWhaleChar(ch)
+    }
+    console.log(line)
   }
 }
 
