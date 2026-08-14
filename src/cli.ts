@@ -77,9 +77,29 @@ function printHelp(): void {
 `))
 }
 
+/** DeepSeek 鲸鱼 ASCII logo（蓝色喷水鲸鱼）。 */
+function printLogo(): void {
+  const whale = [
+    '          .          ',
+    '         / \\         ',
+    '        /   \\        ',
+    '       /_____\\       ',
+    '          |          ',
+    "        .'   '.      ",
+    '       /  o o  \\     ',
+    '      |    ^    |    ',
+    "       \\  '-'  /     ",
+    "        '.___.'      ",
+  ]
+  for (const line of whale) {
+    console.log(chalk.blue(line))
+  }
+}
+
 async function main(): Promise<void> {
   process.env.DSH_CWD = process.env.DSH_CWD ?? process.cwd()
 
+  printLogo()
   console.log(chalk.bold.green('dsh-term') + chalk.gray(' — 终端版 DeepSeek Harness'))
   console.log(chalk.gray('模型: ' + (process.env.DSH_MODEL ?? '默认') + '   工作目录: ' + process.env.DSH_CWD))
   console.log(chalk.gray('输入 /help 查看命令\n'))
