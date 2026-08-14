@@ -18,8 +18,6 @@ const DSH_RUNTIME =
   process.env.DSH_RUNTIME ??
   path.join(process.env.APPDATA ?? '', 'npm', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 
-// 故意引入的类型错误（测试 CI 是否能捕获）
-const intentionallyBroken: number = 'this should fail typecheck'
 
 /** 把 stderr 里的工具调用行（⚙ 前缀）渲染成灰色。 */
 function renderToolCalls(stderrChunk: string): void {
