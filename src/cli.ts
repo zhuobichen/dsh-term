@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * dsh-term —— 终端版 DeepSeek Harness
- * 像 Claude Code 一样住在终端：交互式 REPL + 多轮对话 + markdown 渲染 + 读文件/跑命令/写代码。
+ * 像 Claude Code 一样住在终端：交互式 REPL + 多轮对话 + 实时工具调用显示 + markdown 渲染。
  */
 import { spawn } from 'node:child_process'
 import readline from 'node:readline/promises'
@@ -32,7 +32,17 @@ function renderMarkdown(text: string): string {
   }
 }
 
-function runHeadless(prompt: string): Promise<string> {
+/** 实时把工具调用（stderr 里的 ⚙ 行）显示到终端。 */
+function showToolCall(chunk: string): void {
+  const lines = chunk.split('\n').filter((l) => l.trim() !== '')
+  for (const line of lines) {
+    if (line.includes('⚙')) {
+      process.stdout.write(chalk.dim(line.trim()) + '\n')
+    }
+  }
+}
+
+function runHeadless(prompt: string, onToolCall: (chunk: string) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [DSH_RUNTIME, '--profile', 'headless', prompt], {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -45,6 +55,7 @@ function runHeadless(prompt: string): Promise<string> {
     })
     child.stderr.on('data', (d: Buffer) => {
       stderr += d.toString()
+      onToolCall(d.toString())
     })
     child.on('error', reject)
     child.on('close', (code) => {
@@ -95,11 +106,11 @@ async function main(): Promise<void> {
       continue
     }
 
-    process.stdout.write(chalk.gray('… 思考中\n'))
+    process.stdout.write('\n')
     try {
-      const response = await runHeadless(buildPrompt(input, history))
+      const response = await runHeadless(buildPrompt(input, history), showToolCall)
       history.push({ role: 'user', text: input }, { role: 'assistant', text: response })
-      console.log('\n' + renderMarkdown(response) + '\n')
+      console.log(renderMarkdown(response) + '\n')
     } catch (e) {
       console.error(chalk.red('错误: ' + (e as Error).message) + '\n')
     }
